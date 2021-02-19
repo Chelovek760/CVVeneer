@@ -39,14 +39,20 @@ def cross_image(im1, im2):
 
 def _rotare_img(img):
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    h,w=img_gray.shape[0],img_gray.shape[1]
     img_edges = cv2.Canny(img_gray, 100, 100, apertureSize=3)
-    lines = cv2.HoughLinesP(img_edges, 1, np.pi / 180.0, 100, minLineLength=100, maxLineGap=5)
-    lines_v = cv2.HoughLinesP(img_edges, 1, np.pi / 90, 100, minLineLength=100, maxLineGap=5)
+    lines = cv2.HoughLinesP(img_edges, 1, np.pi / 180.0, 100, minLineLength=w/4, maxLineGap=w/10)
+    lines_v = cv2.HoughLinesP(img_edges, 1, np.pi / 90, 100, minLineLength=h/4, maxLineGap=h/10)
+    if type(lines)==type(None):
+        lines=[]
+    if type(lines_v)==type(None):
+        lines_v=[]
     if len(lines_v)>len(lines):
         img = ndimage.rotate(img, 90)
+        h, w = img.shape[0],img.shape[1]
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         img_edges = cv2.Canny(img_gray, 100, 100, apertureSize=3)
-        lines = cv2.HoughLinesP(img_edges, 1, np.pi / 180.0, 100, minLineLength=100, maxLineGap=5)
+        lines = cv2.HoughLinesP(img_edges, 1, np.pi / 180.0, 100, minLineLength=w/4, maxLineGap=w/10)
     angles = []
     for [[x1, y1, x2, y2]] in lines:
         cv2.line(img, (x1, y1), (x2, y2), (255, 0, 0), 3)
