@@ -11,7 +11,7 @@ def w2d(img, mode='haar', level=1):
     imArray = img
     # Datatype conversions
     # convert to grayscale
-    imArray = cv2.cvtColor(imArray, cv2.COLOR_RGB2GRAY)
+    # imArray = cv2.cvtColor(imArray, cv2.COLOR_RGB2GRAY)
     # convert to float
     imArray = np.float32(imArray)
     imArray /= 255
@@ -66,7 +66,7 @@ def crop_ve(img):
     img_real=img.copy()
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img_gray = np.uint8(img_gray)
-    thresh, im_bw = cv2.threshold(img_gray, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    thresh, im_bw = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
     contours, x = cv2.findContours(im_bw, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     all_areas = []
     for cnt in contours:
@@ -86,6 +86,7 @@ class Veneer():
     def conv_an(self):
         mass = []
         conv = cross_image(self.img_origin, self.img_origin)
+        self.conv_img=conv
         for i in range(conv.shape[1]):
             filt = conv[:, i]
             locminarg = argrelextrema(filt, np.greater, order=5)[0]
@@ -96,8 +97,8 @@ class Veneer():
         # plt.hist(bins[:-1], bins, weights=counts / 100)
         ans = np.ceil(mass[np.argmax(fit)])
         return ans
-    def filt_img(self):
-        img = self.img_origin
+    def filt_img(self,img):
+        img = img
         size = 8
         if not size % 2:
             size += 1
@@ -110,18 +111,18 @@ class Veneer():
         # gray = cv2.cvtColor(filtered,cv2.COLOR_BGR2GRAY)
         gray = w2d(filtered, 'db1', 15)
         # cv2.imwrite('gray.jpg', gray)
-        gray = cv2.blur(gray, (5, 3))
-        (thresh, blackAndWhiteImage) = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+        # gray = cv2.blur(gray, (5, 3))
+        (thresh, blackAndWhiteImage) = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)
         kernel = np.ones((1, 2), np.uint8)  # note this is a horizontal kernel
         d_im = cv2.dilate(blackAndWhiteImage, kernel, iterations=1)
         blackAndWhiteImage = cv2.erode(d_im, kernel, iterations=1)
         return blackAndWhiteImage
 
-    def edge_detector(self, bw_img,minLineLength = 50,maxLineGap = 20):
-        img = self.img_origin
+    def edge_detector(self, img,bw_img,minLineLength = 50,maxLineGap = 20):
+        img = img
         minLineLength = minLineLength
         maxLineGap = maxLineGap
-        lines = cv2.HoughLinesP(bw_img, 1, np.pi / 180, 100, minLineLength, maxLineGap)
+        lines = cv2.HoughLinesP(bw_img, 1, np.pi / 180, 10, minLineLength, maxLineGap)
         new_lienes = np.zeros(img.shape, np.uint8)
         for linee in lines:
             for x1, y1, x2, y2 in linee:
@@ -131,12 +132,14 @@ class Veneer():
 
     def count_veneer(self, new_lienesbw,minLineLength=100,maxLineGap=5):
         new_lienes=new_lienesbw
-        new_lienesbw=cv2.cvtColor(new_lienesbw, cv2.COLOR_BGR2GRAY)
+        # new_lienesbw=cv2.cvtColor(new_lienesbw, cv2.COLOR_BGR2GRAY)
         minLineLength = minLineLength
+        new_lienesbw=np.uint8(new_lienesbw)
+        new_lienesbwblur=new_lienesbw
         maxLineGap = maxLineGap
-        new_lienesbwblur = cv2.blur(new_lienesbw, (7, 7))
-        # cv2.imwrite('new_lienesblur.jpg', new_lienesbwblur)
-        lines = cv2.HoughLinesP(new_lienesbwblur, 1, np.pi / 180, 100, minLineLength, maxLineGap)
+        # new_lienesbwblur = cv2.blur(new_lienesbw, (7, 7))
+        cv2.imwrite('new_lienesblur.jpg', new_lienesbwblur)
+        lines = cv2.HoughLinesP(new_lienesbwblur, 1, np.pi / 180, 10, minLineLength, maxLineGap)
         for linee in lines:
             for x1, y1, x2, y2 in linee:
                 cv2.line(new_lienes, (x1, y1), (x2, y2), (0, 255, 0), 1)
@@ -158,6 +161,7 @@ class Veneer():
         # print(veheer_count.shape)
         counts, bins = np.histogram(veheer_count, bins=150)
         # print(veheer_count)
+        veheer_count = np.where(veheer_count < 30, veheer_count, veheer_count)
         fit = stats.norm.pdf(veheer_count, np.mean(veheer_count), np.std(veheer_count))
         fig,ax=plt.subplots()
         ax.plot(veheer_count, fit, '-o')
