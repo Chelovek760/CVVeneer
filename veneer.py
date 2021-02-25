@@ -11,7 +11,6 @@ from sklearn.decomposition import PCA
 import pandas as pd
 
 
-
 class Buono_Brutto_Cattivo:
     def __init__(self, img, segment_number=99):
         self.segment_number = segment_number
@@ -20,16 +19,16 @@ class Buono_Brutto_Cattivo:
     def separate(self):
         segment_number = self.segment_number
         img = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        h,w=img.shape[0],img.shape[1]
+        h, w = img.shape[0], img.shape[1]
         dur = h / segment_number
         # bad_dict = {'w': wavlet.y_axis_freq, 'w': dur}
         # good_dict = {'freq': wavlet.y_axis_freq, 'dur_part': dur}
         # fig,ax=plt.subplots()
         # ax.imshow(img)
         newtimeshape = w // segment_number * segment_number
-        print(h,w,newtimeshape)
+        print(h, w, newtimeshape)
         wavlet_list = np.hsplit(img[:, :newtimeshape], segment_number)
-        print(wavlet_list[0].shape[0],wavlet_list[0].shape[1])
+        print(wavlet_list[0].shape[0], wavlet_list[0].shape[1])
         print(wavlet_list[0])
         X = np.zeros((segment_number, wavlet_list[0].shape[0] * wavlet_list[0].shape[1]))
         for id, wavelet_part in enumerate(wavlet_list):
@@ -81,7 +80,7 @@ class Buono_Brutto_Cattivo:
         repared = allfile.copy()
         repared['y'] = res
         # print('Bad_time:')
-        bad=[]
+        bad = []
         for i in np.argwhere(res == -1):
             x1, x2 = i * newtimeshape // segment_number, (i + 1) * newtimeshape // segment_number
             # ax.axvspan(x1, x2, alpha=0.3, color='black')
@@ -89,7 +88,7 @@ class Buono_Brutto_Cattivo:
             # print(time2)
             bad.append(wavlet_list[i[0]])
             # ax2.axvspan(x1,x2,alpha=0.3, color='black')
-        good=[]
+        good = []
         for i in np.argwhere(res == 1):
             x1, x2 = i * newtimeshape // segment_number, (i + 1) * newtimeshape // segment_number
             # ax.axvspan(x1, x2, alpha=0.3, color='white')
@@ -104,7 +103,7 @@ class Buono_Brutto_Cattivo:
         # plt.figure()
         # sns.heatmap(allfile.T.corr())
         np.concatenate(good)
-        plt.imshow( np.concatenate(good,axis=1))
+        plt.imshow(np.concatenate(good, axis=1))
         # plt.show()
         # return good_dict, bad_dict
 
@@ -129,52 +128,61 @@ def w2d(img, mode='haar', level=1):
     imArray_H *= 255
     imArray_H = np.uint8(imArray_H)
     return imArray_H
+
+
 def auto_canny(image, sigma=0.33):
-	# compute the median of the single channel pixel intensities
-	v = np.median(image)
-	# apply automatic Canny edge detection using the computed median
-	lower = int(max(0, (1.0 - sigma) * v))
-	upper = int(min(255, (1.0 + sigma) * v))
-	edged = cv2.Canny(image, lower, upper)
-	# return the edged image
-	return edged
+    v = np.median(image)
+    lower = int(max(0, (1.0 - sigma) * v))
+    upper = int(min(255, (1.0 + sigma) * v))
+    edged = cv2.Canny(image, lower, upper,apertureSize=7)
+    return edged
+
+
 def cross_image(im1, im2):
+    im1_gray = np.sum(im1.astype('float'), axis=2)
+    im2_gray = np.sum(im2.astype('float'), axis=2)
 
-   im1_gray = np.sum(im1.astype('float'), axis=2)
-   im2_gray = np.sum(im2.astype('float'), axis=2)
+    im1_gray -= np.mean(im1_gray)
+    im2_gray -= np.mean(im2_gray)
 
-   im1_gray -= np.mean(im1_gray)
-   im2_gray -= np.mean(im2_gray)
+    return scipy.signal.fftconvolve(im1_gray, im2_gray[::-1, ::-1], mode='same')
 
-   return scipy.signal.fftconvolve(im1_gray, im2_gray[::-1,::-1], mode='same')
 
 def _rotare_img(img):
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    h,w=img_gray.shape[0],img_gray.shape[1]
+    h, w = img_gray.shape[0], img_gray.shape[1]
     # kernel = np.ones((5, 5), np.uint8)
-    # img_gray=cv2.GaussianBlur(img_gray, (3, 3), 0)
-    img_edges = auto_canny(img_gray,0)
+    img_gray=cv2.GaussianBlur(img_gray, (3, 3), 0)
+    se = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 8))
+    bg = cv2.morphologyEx(img_gray, cv2.MORPH_DILATE, se)
+    out_gray = cv2.divide(img_gray, bg, scale=255)
+    # img_edges = cv2.threshold(out_gray, 0, 255, cv2.THRESH_OTSU)[1]
+    img_edges = auto_canny(out_gray, 0.8)
+    se = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    img_edges = cv2.morphologyEx(img_edges, cv2.MORPH_DILATE, se)
+    # img_edges=out_gray
+    fig, ax = plt.subplots(nrows=1, ncols=2,figsize=(15,15))
     # img_edges = cv2.morphologyEx(img_edges, cv2.MORPH_GRADIENT, kernel)
-    # plt.imshow(img_edges)
-    # plt.imshow(img_edges)
-    line_l=max(h,w)
-    lines = cv2.HoughLinesP(img_edges, 1, np.pi / 180.0, 100, minLineLength=line_l/3, maxLineGap=line_l/50)
-    lines_v = cv2.HoughLinesP(img_edges, 1, np.pi / 90, 100, minLineLength=line_l/3, maxLineGap=line_l/50)
-    lines_t=[]
+    ax[0].imshow(img_edges,cmap='Greys',)
+
+    line_l = max(h, w)
+    lines = cv2.HoughLinesP(img_edges, 1, np.pi / 180.0, 500, minLineLength=line_l / 2, maxLineGap=2)
+    lines_v = cv2.HoughLinesP(img_edges, 1, np.pi / 90, 500, minLineLength=line_l / 2, maxLineGap=2)
+    lines_t = []
     for [[x1, y1, x2, y2]] in lines:
-        angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
-        if angle<185 and angle>175:
-            lines_t.append([[x1, y1, x2, y2]])
-    lines_v_t=[]
+        angle = np.abs(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
+        # if angle < 200 and angle > 160:
+        lines_t.append([[x1, y1, x2, y2]])
+    lines_v_t = []
     for [[x1, y1, x2, y2]] in lines_v:
-        angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
-        if angle<92 and angle>88:
-            lines_v_t.append([[x1, y1, x2, y2]])
-    if type(lines)==type(None):
-        lines=[]
-    if type(lines_v)==type(None):
-        lines_v=[]
-    if len(lines_v_t)>len(lines_t):
+        angle = np.abs(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
+        # if angle < 92 and angle > 88:
+        lines_v_t.append([[x1, y1, x2, y2]])
+    if type(lines) == type(None):
+        lines = []
+    if type(lines_v) == type(None):
+        lines_v = []
+    if len(lines_v_t) > len(lines_t):
         median_angle = np.median(lines_v_t)
         img_rotated = ndimage.rotate(img, median_angle + 90)
     else:
@@ -192,13 +200,14 @@ def _rotare_img(img):
         cv2.line(img, (x1, y1), (x2, y2), (0, 255, 0), 3)
         # angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
         # angles.append(angle)
-    plt.imshow(img)
-    return img_rotated
+    ax[1].imshow(img_rotated)
+    return img_rotated, fig
+
 
 def crop_ve(img):
-    img_real=img.copy()
+    img_real = img.copy()
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    img_gray=cv2.GaussianBlur(img_gray, (7, 7), 0)
+    img_gray = cv2.GaussianBlur(img_gray, (7, 7), 0)
     img_gray = np.uint8(img_gray)
     # thresh, im_bw = cv2.threshold(img_gray, 100, 150, cv2.THRESH_BINARY|cv2.THRESH_OTSU)
     img_edges = auto_canny(img_gray)
@@ -221,6 +230,8 @@ def crop_ve(img):
     x, y, w, h = cv2.boundingRect(largest_item)
     cropped = img_real[y:y + h, x:x + w]
     return cropped
+
+
 class Veneer():
     def __init__(self, file_name):
         img_origin = cv2.imread(file_name)
@@ -233,13 +244,12 @@ class Veneer():
         # div = np.float32(img_origin) / (close)
         # img_origin = np.uint8(cv2.normalize(div, div, 0, 255, cv2.NORM_MINMAX))
         # img_origin = cv2.bilateralFilter(img_origin, 5, 100, 75)
-        self.img_origin=crop_ve(_rotare_img(img_origin))
-
+        self.img_origin = crop_ve(_rotare_img(img_origin))
 
     def conv_an(self):
         mass = []
         conv = cross_image(self.img_origin, self.img_origin)
-        self.conv_img=conv
+        self.conv_img = conv
         # kernel = np.ones((1, 2), np.uint8)  # note this is a horizontal kernel
         # d_im = cv2.dilate(conv, kernel, iterations=1)
         # blackAndWhiteImage = cv2.erode(conv, kernel, iterations=1)
@@ -254,7 +264,8 @@ class Veneer():
         # plt.hist(bins[:-1], bins, weights=counts / 100)
         ans = np.ceil(mass[np.argmax(fit)])
         return ans
-    def filt_img(self,img):
+
+    def filt_img(self, img):
         img = img
         size = 8
         if not size % 2:
@@ -275,7 +286,7 @@ class Veneer():
         blackAndWhiteImage = cv2.erode(d_im, kernel, iterations=1)
         return blackAndWhiteImage
 
-    def edge_detector(self, img,bw_img,minLineLength = 50,maxLineGap = 20):
+    def edge_detector(self, img, bw_img, minLineLength=50, maxLineGap=20):
         img = img
         minLineLength = minLineLength
         maxLineGap = maxLineGap
@@ -287,12 +298,12 @@ class Veneer():
                 cv2.line(new_lienes, (x1, y1), (x2, y2), (0, 255, 0), 1)
         return img, new_lienes
 
-    def count_veneer(self, new_lienesbw,minLineLength=100,maxLineGap=5):
-        new_lienes=new_lienesbw
+    def count_veneer(self, new_lienesbw, minLineLength=100, maxLineGap=5):
+        new_lienes = new_lienesbw
         # new_lienesbw=cv2.cvtColor(new_lienesbw, cv2.COLOR_BGR2GRAY)
         minLineLength = minLineLength
-        new_lienesbw=np.uint8(new_lienesbw)
-        new_lienesbwblur=new_lienesbw
+        new_lienesbw = np.uint8(new_lienesbw)
+        new_lienesbwblur = new_lienesbw
         maxLineGap = maxLineGap
         # new_lienesbwblur = cv2.blur(new_lienesbw, (7, 7))
         cv2.imwrite('new_lienesblur.jpg', new_lienesbwblur)
@@ -320,10 +331,10 @@ class Veneer():
         # print(veheer_count)
         veheer_count = np.where(veheer_count < 30, veheer_count, veheer_count)
         fit = stats.norm.pdf(veheer_count, np.mean(veheer_count), np.std(veheer_count))
-        fig,ax=plt.subplots()
+        fig, ax = plt.subplots()
         ax.plot(veheer_count, fit, '-o')
         ax.hist(bins[:-1], bins, weights=counts / 100)
-        ans = np.ceil(veheer_count[np.argmax(fit)]/2)+1
+        ans = np.ceil(veheer_count[np.argmax(fit)] / 2) + 1
         # print(np.ceil(veheer_count[np.argmax(fit)]))
         (h, w) = clear_matrix.shape
         center = (int(w / 2), int(h / 2))
@@ -345,3 +356,9 @@ class Veneer():
                     fontColor,
                     lineType)
         return ans, img, clear_matrix, fig
+
+
+if __name__ == "__main__":
+    img = cv2.imread(r'D:\Projects\CVVeneer\data\test\5_3\IMG_2879.jpeg')
+    omg, fig = _rotare_img(img)
+    plt.show()
