@@ -160,15 +160,16 @@ def _rotare_img(img):
     bg = cv2.morphologyEx(img_gray, cv2.MORPH_DILATE, se)
     out_gray = cv2.divide(img_gray, bg, scale=255)
     # img_edges = cv2.threshold(out_gray, 0, 255, cv2.THRESH_OTSU)[1]
-    img_edges = auto_canny(out_gray,0.8)
-    se = cv2.getStructuringElement(cv2.MORPH_RECT, (int(line_l/200), 1))
+    img_edges = auto_canny(out_gray)
+    se = cv2.getStructuringElement(cv2.MORPH_RECT, (int(line_l/500), 1))
     img_edges = cv2.morphologyEx(img_edges, cv2.MORPH_DILATE, se)
-    img_edges = cv2.threshold(img_edges, 0, 255, cv2.THRESH_OTSU)[1]
-    img_edges=cv2.bitwise_not(img_edges)
+    img_edges = cv2.bitwise_not(img_edges)
+    img_edges = cv2.threshold(img_edges, 160,255, cv2.THRESH_OTSU)[1]
+    img_edges = cv2.bitwise_not(img_edges)
     # img_edges=out_gray
-    # fig, ax = plt.subplots(nrows=1, ncols=2,figsize=(15,15))
+    fig, ax = plt.subplots(nrows=1, ncols=2,figsize=(15,15))
     # img_edges = cv2.morphologyEx(img_edges, cv2.MORPH_GRADIENT, kernel)
-    # ax[0].imshow(img_edges, cmap='gray', vmin=0, vmax=255)
+    ax[0].imshow(img_edges, cmap='gray', vmin=0, vmax=255)
 
 
     lines = cv2.HoughLinesP(img_edges, rho=1,theta=np.pi/180, threshold=100, minLineLength=100, maxLineGap=line_l/50)
@@ -178,6 +179,7 @@ def _rotare_img(img):
     if type(lines) == type(None):
         return _rotare_img(ndimage.rotate(img, 90))
     for [[x1, y1, x2, y2]] in lines:
+        cv2.line(img, (x1, y1), (x2, y2), (0, 255, 0), 3)
         angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
         lines_t.append([[x1, y1, x2, y2]])
         angles.append(angle)
@@ -207,10 +209,10 @@ def _rotare_img(img):
     # for [[x1, y1, x2, y2]] in lines_v_t:
     #     cv2.line(img, (x1, y1), (x2, y2), (255, 0, 0), 3)
     # for [[x1, y1, x2, y2]] in lines:
-    #     cv2.line(img_rotated, (x1, y1), (x2, y2), (0, 255, 0), 3)
+    #    pass
         # angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
         # angles.append(angle)
-    # ax[1].imshow(img_rotated)
+    ax[1].imshow(img_rotated)
     return img_rotated
 
 
@@ -235,20 +237,20 @@ class Veneer():
     def __init__(self, file_name):
         img_origin = cv2.imread(file_name)
         omg = _rotare_img(img_origin)
-        # bbc = Buono_Brutto_Cattivo(omg)
-        # clear = bbc.separate()
-        # crop = crop_ve(omg)
-        self.img_origin = omg
+        bbc = Buono_Brutto_Cattivo(omg)
+        clear = bbc.separate()
+        crop = crop_ve(clear)
+        self.img_origin = crop
 
     def conv_an(self):
         mass = []
         conv = cross_image(self.img_origin, self.img_origin)
         self.conv_img = conv
-        # plt.figure()
+        plt.figure()
         # kernel = np.ones((1, 2), np.uint8)  # note this is a horizontal kernel
         # d_im = cv2.dilate(conv, kernel, iterations=1)
         # blackAndWhiteImage = cv2.erode(conv, kernel, iterations=1)
-        # plt.imshow(conv)
+        plt.imshow(conv)
         for i in range(conv.shape[1]):
             filt = conv[:, i]
             locminarg = argrelextrema(filt, np.greater, order=5)[0]
@@ -354,14 +356,14 @@ class Veneer():
 
 
 if __name__ == "__main__":
-    img = cv2.imread(r'D:\Projects\CVVeneer\data\test_2\4 layers_1 pieces (9).jpg')
+    # img = cv2.imread(r'D:\Projects\CVVeneer\data\final_dataset\6 layers_1 pieces (1).jpg')
     # omg = _rotare_img(img)
     # clear=Buono_Brutto_Cattivo(omg)
     # clear=clear.separate()
     # crop=crop_ve(omg)
     # plt.figure()
     # plt.imshow(crop)
-    v1 = Veneer(r'D:\Projects\CVVeneer\data\test_2\4 layers_1 pieces (9).jpg')
+    v1 = Veneer(r'D:\Projects\CVVeneer\data\final_dataset\6 layers_1 pieces (1).jpg')
     plt.imshow(v1.img_origin)
     res = v1.conv_an()
     print(res)
