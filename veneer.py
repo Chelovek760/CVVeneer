@@ -160,8 +160,8 @@ def _rotare_img(img):
     bg = cv2.morphologyEx(img_gray, cv2.MORPH_DILATE, se)
     out_gray = cv2.divide(img_gray, bg, scale=255)
     # img_edges = cv2.threshold(out_gray, 0, 255, cv2.THRESH_OTSU)[1]
-    img_edges = auto_canny(out_gray, 0.8)
-    se = cv2.getStructuringElement(cv2.MORPH_RECT, (int(line_l/50), 1))
+    img_edges = auto_canny(out_gray,0.8)
+    se = cv2.getStructuringElement(cv2.MORPH_RECT, (int(line_l/200), 1))
     img_edges = cv2.morphologyEx(img_edges, cv2.MORPH_DILATE, se)
     img_edges = cv2.threshold(img_edges, 0, 255, cv2.THRESH_OTSU)[1]
     img_edges=cv2.bitwise_not(img_edges)
@@ -206,8 +206,8 @@ def _rotare_img(img):
     # angles = []
     # for [[x1, y1, x2, y2]] in lines_v_t:
     #     cv2.line(img, (x1, y1), (x2, y2), (255, 0, 0), 3)
-    # for [[x1, y1, x2, y2]] in lines_t:
-    #     cv2.line(img, (x1, y1), (x2, y2), (0, 255, 0), 3)
+    # for [[x1, y1, x2, y2]] in lines:
+    #     cv2.line(img_rotated, (x1, y1), (x2, y2), (0, 255, 0), 3)
         # angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
         # angles.append(angle)
     # ax[1].imshow(img_rotated)
@@ -218,7 +218,7 @@ def crop_ve(img):
     img_real = img.copy()
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img_gray = np.uint8(img_gray)
-    thresh, im_bw = cv2.threshold(img_gray, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    thresh, im_bw = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
     contours, x = cv2.findContours(im_bw, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     all_areas = []
     for cnt in contours:
@@ -235,19 +235,20 @@ class Veneer():
     def __init__(self, file_name):
         img_origin = cv2.imread(file_name)
         omg = _rotare_img(img_origin)
-        bbc = Buono_Brutto_Cattivo(omg)
-        clear = bbc.separate()
-        crop = crop_ve(clear)
-        self.img_origin = crop
+        # bbc = Buono_Brutto_Cattivo(omg)
+        # clear = bbc.separate()
+        # crop = crop_ve(omg)
+        self.img_origin = omg
 
     def conv_an(self):
         mass = []
         conv = cross_image(self.img_origin, self.img_origin)
         self.conv_img = conv
+        # plt.figure()
         # kernel = np.ones((1, 2), np.uint8)  # note this is a horizontal kernel
         # d_im = cv2.dilate(conv, kernel, iterations=1)
         # blackAndWhiteImage = cv2.erode(conv, kernel, iterations=1)
-        # plt.imshow(blackAndWhiteImage)
+        # plt.imshow(conv)
         for i in range(conv.shape[1]):
             filt = conv[:, i]
             locminarg = argrelextrema(filt, np.greater, order=5)[0]
@@ -353,11 +354,16 @@ class Veneer():
 
 
 if __name__ == "__main__":
-    img = cv2.imread(r'D:\Projects\CVVeneer\data\test\29_7\IMG_2932.jpeg')
-    omg = _rotare_img(img)
-    clear=Buono_Brutto_Cattivo(omg)
-    clear=clear.separate()
-    crop=crop_ve(clear)
-    plt.imshow(crop)
+    img = cv2.imread(r'D:\Projects\CVVeneer\data\test_2\4 layers_1 pieces (9).jpg')
+    # omg = _rotare_img(img)
+    # clear=Buono_Brutto_Cattivo(omg)
+    # clear=clear.separate()
+    # crop=crop_ve(omg)
+    # plt.figure()
+    # plt.imshow(crop)
+    v1 = Veneer(r'D:\Projects\CVVeneer\data\test_2\4 layers_1 pieces (9).jpg')
+    plt.imshow(v1.img_origin)
+    res = v1.conv_an()
+    print(res)
     # print(Veneer(r'D:\Projects\CVVeneer\data\test\29_7\IMG_2932.jpeg').conv_an())
     plt.show()
